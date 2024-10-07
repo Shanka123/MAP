@@ -10,7 +10,6 @@ openai.api_type = "azure"
 openai.api_base = "https://gcrgpt4aoai3.openai.azure.com/"
 openai.api_version = "2023-03-15-preview" # can use the older api version openai.api_version = "2022-12-01"
 
-
 def check_path(path):
 	if not os.path.exists(path):
 		os.mkdir(path)
@@ -73,9 +72,8 @@ for start_room in range(1,16):
 		- Room 12 is connected to room 15. 
 		- There is a chest with a reward of 50 for visiting room 8 and there is a chest with a reward of 10 for visiting room 15. 
 		- You can collect the reward only once and only from one chest. 
-		- If you enter a room with a chest, then you must collect the reward from that chest, and you cannot collect anymore rewards.
 
-		Goal: The goal is to find the shortest path from the starting room to the room with a chest with the highest reward.
+		Goal: The goal is to find the shortest path from the starting room that yields the most reward.
 
 		Here are two examples:
 
@@ -84,7 +82,8 @@ for start_room in range(1,16):
 		This is the starting room:
 		room 1
 	
-		The shortest path from room 1 to the room with a chest with the highest reward is: 1, 11, 5, 8
+		The location which contains the maximum reward is room 8. To go to room 8 from room 1 first I need to go to room 11. From room 11, I can go to room 2, room 5, or room 14, all of them are directly connected to room 8. Let's pick room 5. From room 5, I can directly go to room 8.
+		Hence, the shortest path from room 1 that yields the most reward is: 1, 11, 5, 8
 	
 
 		Example 2:
@@ -92,21 +91,21 @@ for start_room in range(1,16):
 		This is the starting room:
 		room 6
 	
-		The shortest path from room 6 to the room with a chest with the highest reward is: 6, 3, 8
+		The location which contains the maximum reward is room 8. To go to room 8 from room 6 first I need to go to room 3. From room 3, I can directly go to room 8.
+		Hence, the shortest path from room 6 that yields the most reward is: 6, 3, 8
+	
 	
 		Here is the task:
 
 		This is the starting room:
 		room {}
 
-		Starting from room {}, please list the room numbers in order, including {}, separated by commas. Please limit your answer to a maximum path length of 6.
-		 
-		Your answer should only be in the format as below:
-		The shortest path from room {} to the room with a chest with the highest reward is: {}, 
+		Starting from room {}, use a step by step thinking to find the shortest path that yields the most reward. Please limit your shortest path answer to a maximum path length of 6.
+		  
 
 		
 
-		""".format(start_room,start_room,start_room,start_room,start_room)
+		""".format(start_room,start_room)
 
 		input = [{
 		    "role": "system",
@@ -127,6 +126,7 @@ for start_room in range(1,16):
 		with open(output_dir+'problem{}.log'.format(start_room), 'a') as w:
 			w.write(prompt +'\n')
 
+		
 		
 		cur_try=0
 		
@@ -159,32 +159,28 @@ for start_room in range(1,16):
 				continue
 
 
-		with open(output_dir+'problem{}.log'.format(start_room), 'a') as w:
-			w.write("GPT-4 Response before rewardReval >>>>>>>\n"+response.choices[0].message.content)
-
-
+			
 		
-	
+		with open(output_dir+'problem{}.log'.format(start_room), 'a') as w:
+			w.write("GPT-4 Response before detour >>>>>>>\n"+response.choices[0].message.content)
 
 
-		reval_prompt = """
-		Now you have been told that the reward of the chest in room 8 has been changed to 12 and the reward of the chest in room 15 has been changed to 48. You can collect the reward only once and only from one chest.
-		If you enter a room with a chest, then you must collect the reward from that chest, and you cannot collect anymore rewards.
+		detour_prompt = """
 
-		Goal: The goal is to find the shortest path from the starting room to the room with a chest with the highest reward.
+		The door from room 1 to room 11 is locked and now room 13 is connected to room 11. You can collect the reward only once and only from one chest.
+
+		Goal: The goal is to find the shortest path from the starting room that yields the most reward.
 
 		This is the starting room:
 		room {}
 
-		Starting from room {}, please list the room numbers in order, including {}, separated by commas. Please limit your answer to a maximum path length of 6.
+		Starting from room {}, use a step by step thinking to find the shortest path that yields the most reward. Please limit your shortest path answer to a maximum path length of 6.
 		 
-		Your answer should only be in the format as below:
-		The shortest path from room {} to the room with a chest with the highest reward is: {}, 
 
-		""".format(start_room,start_room,start_room,start_room,start_room)
+		""".format(start_room,start_room)
 
 		
-		prompt+="\n"+response.choices[0].message.content+"\n"+reval_prompt
+		prompt+="\n"+response.choices[0].message.content+"\n"+detour_prompt
 
 		input = [{
 		    "role": "system",
@@ -230,20 +226,15 @@ for start_room in range(1,16):
 			
 		
 		with open(output_dir+'problem{}.log'.format(start_room), 'a') as w:
-			w.write("\nGPT-4 Response after rewardReval >>>>>>>\n"+response.choices[0].message.content)
+			w.write("\nGPT-4 Response after detour >>>>>>>\n"+response.choices[0].message.content)
 
 
 		with open(output_dir+'problem{}.log'.format(start_room), 'a') as w:
 			w.write("\n\n Number of input tokens = {} \n Number of output tokens = {}".format(num_input_tokens,num_output_tokens))
 	
-
-
-		
-		
 	
 		print("done solving problem {}".format(start_room))
 				
-
 
 
 

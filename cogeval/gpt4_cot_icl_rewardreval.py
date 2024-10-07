@@ -10,7 +10,6 @@ openai.api_type = "azure"
 openai.api_base = "https://gcrgpt4aoai3.openai.azure.com/"
 openai.api_version = "2023-03-15-preview" # can use the older api version openai.api_version = "2022-12-01"
 
-
 def check_path(path):
 	if not os.path.exists(path):
 		os.mkdir(path)
@@ -77,6 +76,7 @@ for start_room in range(1,16):
 
 		Goal: The goal is to find the shortest path from the starting room to the room with a chest with the highest reward.
 
+
 		Here are two examples:
 
 		Example 1:
@@ -84,29 +84,27 @@ for start_room in range(1,16):
 		This is the starting room:
 		room 1
 	
-		The shortest path from room 1 to the room with a chest with the highest reward is: 1, 11, 5, 8
-	
+		The location which contains the highest reward is room 8. To go to room 8 from room 1 first I need to go to room 11. From room 11, I can go to room 2, room 5, or room 14, all of them are directly connected to room 8. Let's pick room 5. From room 5, I can directly go to room 8.
+		Hence, the shortest path from room 1 to the room with a chest with the highest reward is: 1, 11, 5, 8
+
 
 		Example 2:
 
 		This is the starting room:
 		room 6
 	
-		The shortest path from room 6 to the room with a chest with the highest reward is: 6, 3, 8
-	
+		The location which contains the highest reward is room 8. To go to room 8 from room 6 first I need to go to room 3. From room 3, I can directly go to room 8.
+		Hence, the shortest path from room 6 to the room with a chest with the highest reward is: 6, 3, 8
+
 		Here is the task:
 
 		This is the starting room:
 		room {}
 
-		Starting from room {}, please list the room numbers in order, including {}, separated by commas. Please limit your answer to a maximum path length of 6.
+		Starting from room {}, use a step by step thinking to find the shortest path to the room with a chest with the highest reward. Please limit your shortest path answer to a maximum path length of 6.
 		 
-		Your answer should only be in the format as below:
-		The shortest path from room {} to the room with a chest with the highest reward is: {}, 
 
-		
-
-		""".format(start_room,start_room,start_room,start_room,start_room)
+		""".format(start_room,start_room)
 
 		input = [{
 		    "role": "system",
@@ -159,12 +157,10 @@ for start_room in range(1,16):
 				continue
 
 
+			
+		
 		with open(output_dir+'problem{}.log'.format(start_room), 'a') as w:
 			w.write("GPT-4 Response before rewardReval >>>>>>>\n"+response.choices[0].message.content)
-
-
-		
-	
 
 
 		reval_prompt = """
@@ -176,12 +172,10 @@ for start_room in range(1,16):
 		This is the starting room:
 		room {}
 
-		Starting from room {}, please list the room numbers in order, including {}, separated by commas. Please limit your answer to a maximum path length of 6.
+		Starting from room {}, use a step by step thinking to find the shortest path to the room with a chest with the highest reward. Please limit your shortest path answer to a maximum path length of 6.
 		 
-		Your answer should only be in the format as below:
-		The shortest path from room {} to the room with a chest with the highest reward is: {}, 
 
-		""".format(start_room,start_room,start_room,start_room,start_room)
+		""".format(start_room,start_room)
 
 		
 		prompt+="\n"+response.choices[0].message.content+"\n"+reval_prompt
@@ -236,14 +230,9 @@ for start_room in range(1,16):
 		with open(output_dir+'problem{}.log'.format(start_room), 'a') as w:
 			w.write("\n\n Number of input tokens = {} \n Number of output tokens = {}".format(num_input_tokens,num_output_tokens))
 	
-
-
-		
-		
 	
 		print("done solving problem {}".format(start_room))
 				
-
 
 
 

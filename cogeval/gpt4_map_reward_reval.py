@@ -1,6 +1,6 @@
 import openai
 from copy import deepcopy
-from valuepath_fewshot_examples import standard_prompt
+
 import time
 import re
 import json
@@ -132,6 +132,7 @@ def task_coordination_module(current_room,reval_flag):
 			- Room 12 is connected to room 15. 
 			- There is a chest with a reward of 50 for visiting room 8 and there is a chest with a reward of 10 for visiting room 15. 
 			- You can collect the reward only once and only from one chest. 
+			- If you enter a room with a chest, then you must collect the reward from that chest, and you cannot collect anymore rewards.
 
 			Goal: The goal is to predict whether there is a chest with a reward in the current room or not. 
 
@@ -183,6 +184,7 @@ def task_coordination_module(current_room,reval_flag):
 			- Room 12 is connected to room 15. 
 			- There is a chest with a reward of 50 for visiting room 8 and there is a chest with a reward of 10 for visiting room 15. 
 			- You can collect the reward only once and only from one chest. 
+			- If you enter a room with a chest, then you must collect the reward from that chest, and you cannot collect anymore rewards.
 
 			Goal: The goal is to predict whether there is a chest with a reward in the current room or not. 
 
@@ -205,6 +207,7 @@ def task_coordination_module(current_room,reval_flag):
 			There is a chest with a reward of 50 for visiting room 8 and there is a chest with a reward of 10 for visiting room 15. I am currently in room 8 where there is a chest with a reward. Hence yes. 
 			
 			Now you have been told that the reward of the chest in room 8 has been changed to 12 and the reward of the chest in room 15 has been changed to 48. You can collect the reward only once and only from one chest.
+			If you enter a room with a chest, then you must collect the reward from that chest, and you cannot collect anymore rewards.
 
 	
 
@@ -284,8 +287,9 @@ def state_evaluator_module(current_room,reval_flag):
 			- Room 12 is connected to room 15. 
 			- There is a chest with a reward of 50 for visiting room 8 and there is a chest with a reward of 10 for visiting room 15. 
 			- You can collect the reward only once and only from one chest. 
-			
-			Goal: The goal is to predict the minimum number of steps from the current room that yields the most reward. 
+			- If you enter a room with a chest, then you must collect the reward from that chest, and you cannot collect anymore rewards.
+
+			Goal: The goal is to predict the minimum number of steps from the current room to the room with a chest with the highest reward. 
 
 			Here are two examples:
 
@@ -295,7 +299,7 @@ def state_evaluator_module(current_room,reval_flag):
 			room 1 
 		
 			Answer:
-			The minimum number of steps required from the current room that yields the most reward is 3.
+			The minimum number of steps required from the current room to the room with a chest with the highest reward is 3.
 
 			Example 2:
 
@@ -303,7 +307,7 @@ def state_evaluator_module(current_room,reval_flag):
 			room 6
 
 			Answer:
-			The minimum number of steps required from the current room that yields the most reward is 2.
+			The minimum number of steps required from the current room to the room with a chest with the highest reward is 2.
 
 			
 			Here is the task:
@@ -336,8 +340,9 @@ def state_evaluator_module(current_room,reval_flag):
 			- Room 12 is connected to room 15. 
 			- There is a chest with a reward of 50 for visiting room 8 and there is a chest with a reward of 10 for visiting room 15. 
 			- You can collect the reward only once and only from one chest. 
-			
-			Goal: The goal is to predict the minimum number of steps from the current room that yields the most reward. 
+			- If you enter a room with a chest, then you must collect the reward from that chest, and you cannot collect anymore rewards.
+
+			Goal: The goal is to predict the minimum number of steps from the current room to the room with a chest with the highest reward. 
 
 			Here are two examples:
 
@@ -347,7 +352,7 @@ def state_evaluator_module(current_room,reval_flag):
 			room 1 
 		
 			Answer:
-			The minimum number of steps required from the current room that yields the most reward is 3.
+			The minimum number of steps required from the current room to the room with a chest with the highest reward is 3.
 
 			Example 2:
 
@@ -355,10 +360,11 @@ def state_evaluator_module(current_room,reval_flag):
 			room 6
 
 			Answer:
-			The minimum number of steps required from the current room that yields the most reward is 2.
+			The minimum number of steps required from the current room to the room with a chest with the highest reward is 2.
 
 			Now you have been told that the reward of the chest in room 8 has been changed to 12 and the reward of the chest in room 15 has been changed to 48. You can collect the reward only once and only from one chest.
- 
+ 			If you enter a room with a chest, then you must collect the reward from that chest, and you cannot collect anymore rewards.
+
 
 			Here is the task:
 
@@ -635,7 +641,7 @@ def actor_module_propose_two_actions(actor_input,current_room,reval_flag):
 
 
 
-					Please try again to give me only two different next rooms to go to from the current room that can help in yielding the most reward using as few steps as possible. Please format your answer as:
+					Please try again to give me only two different next rooms to go to from the current room that can help in reaching the room with a chest with the highest reward using as few steps as possible. Please format your answer as:
 					Go from room <N> to room <N>.
 
 
@@ -733,7 +739,7 @@ def actor_module_propose_two_actions(actor_input,current_room,reval_flag):
 				room {}
 					
 				
-				Please try again to give me only two different next rooms to go to from the current room that can help in yielding the most reward using as few steps as possible. Please format your answer as:
+				Please try again to give me only two different next rooms to go to from the current room that can help in reaching the room with a chest with the highest reward using as few steps as possible. Please format your answer as:
 				Go from room <N> to room <N>.
 
 				""".format(validity2_response,current_room)
@@ -768,7 +774,7 @@ def actor_module_propose_two_actions(actor_input,current_room,reval_flag):
 				room {}
 					
 				
-				Please try again to give me only two different next rooms to go to from the current room that can help in yielding the most reward using as few steps as possible. Please format your answer as:
+				Please try again to give me only two different next rooms to go to from the current room that can help in reaching the room with a chest with the highest reward using as few steps as possible. Please format your answer as:
 				Go from room <N> to room <N>.
 
 				""".format(validity1_response,current_room)
@@ -799,7 +805,7 @@ def actor_module_propose_two_actions(actor_input,current_room,reval_flag):
 				room {}
 					
 				
-				Please try again to give me only two different next rooms to go to from the current room that can help in yielding the most reward using as few steps as possible. Please format your answer as:
+				Please try again to give me only two different next rooms to go to from the current room that can help in reaching the room with a chest with the highest reward using as few steps as possible. Please format your answer as:
 				Go from room <N> to room <N>.
 
 				""".format(validity1_response,validity2_response,current_room)
@@ -847,8 +853,9 @@ def actor_module_propose_two_actions(actor_input,current_room,reval_flag):
 				room {}
 					
 				
-				Please try again to give me only two different next rooms to go to from the current room that can help in yielding the most reward using as few steps as possible. Please format your answer as:
+				Please try again to give me only two different next rooms to go to from the current room that can help in reaching the room with a chest with the highest reward using as few steps as possible. Please format your answer as:
 				Go from room <N> to room <N>.
+
 
 				""".format(validity1_response,current_room)
 				# else:
@@ -943,10 +950,10 @@ def rollout_from_2nodes(current_room1,current_room2,start_prompt,proposals,reval
 		{}
 		
 	
-		Give me only two different next rooms to go to from the current room that can help in yielding the most reward using as few steps as possible. Please format your answer as:
+		Give me only two different next rooms to go to from the current room that can help in reaching the room with a chest with the highest reward using as few steps as possible. Please format your answer as:
 		Go from room <N> to room <N>.
 
-		""" .format(current_room1)
+		""".format(current_room1)
 		# else:
 
 		# 	internal_configuration_msg = """
@@ -988,10 +995,10 @@ def rollout_from_2nodes(current_room1,current_room2,start_prompt,proposals,reval
 		{}
 		
 	
-		Give me only two different next rooms to go to from the current room that can help in yielding the most reward using as few steps as possible. Please format your answer as:
+		Give me only two different next rooms to go to from the current room that can help in reaching the room with a chest with the highest reward using as few steps as possible. Please format your answer as:
 		Go from room <N> to room <N>.
 
-		""" .format(current_room2)
+		""".format(current_room2)
 		# else:
 		# 	internal_configuration_msg = """
 		# 	This is the current room:
@@ -1133,21 +1140,41 @@ for run_no in range(1,2):
 			- Room 12 is connected to room 15. 
 			- There is a chest with a reward of 50 for visiting room 8 and there is a chest with a reward of 10 for visiting room 15. 
 			- You can collect the reward only once and only from one chest. 
+			- If you enter a room with a chest, then you must collect the reward from that chest, and you cannot collect anymore rewards.
 
-			Goal: The goal is to find the shortest path from the starting room that yields the most reward.
+			Goal: The goal is to find the shortest path from the starting room to the room with a chest with the highest reward.
+
 
 			Here are two examples:
-			{}
+
+			Example 1:
+
+			This is the starting room:
+			room 1
+
+			The location which contains the highest reward is room 8. To go to room 8 from room 1 first I need to go to room 11. From room 11, I can go to room 2, room 5, or room 14, all of them are directly connected to room 8. Let's pick room 5. From room 5, I can directly go to room 8.
+			Hence, the shortest path from room 1 to the room with a chest with the highest reward is: 1, 11, 5, 8
+
+
+			Example 2:
+
+			This is the starting room:
+			room 6
+
+			The location which contains the highest reward is room 8. To go to room 8 from room 6 first I need to go to room 3. From room 3, I can directly go to room 8.
+			Hence, the shortest path from room 6 to the room with a chest with the highest reward is: 6, 3, 8
+
+
 
 			Here is the task:
 
 			This is the starting room:
 			room {}
 
-			Give me only two different next rooms to go to from the starting room that can help in yielding the most reward using as few steps as possible. Please format your answer as:
+			Give me only two different next rooms to go to from the starting room that can help in reaching the room with a chest with the highest reward using as few steps as possible. Please format your answer as:
 			Go from room <N> to room <N>.
 
-			""".format(standard_prompt,start_room)
+			""".format(start_room)
 
 			input = [{
 				"role": "system",
@@ -1210,7 +1237,7 @@ for run_no in range(1,2):
 					room {}
 					
 				
-					Give me only two different next rooms to go to from the current room that can help in yielding the most reward using as few steps as possible. Please format your answer as:
+					Give me only two different next rooms to go to from the current room that can help in reaching the room with a chest with the highest reward using as few steps as possible. Please format your answer as:
 					Go from room <N> to room <N>.
 
 
@@ -1252,13 +1279,14 @@ for run_no in range(1,2):
 
 						reval_prompt = """
 						Now you have been told that the reward of the chest in room 8 has been changed to 12 and the reward of the chest in room 15 has been changed to 48. You can collect the reward only once and only from one chest.
+						If you enter a room with a chest, then you must collect the reward from that chest, and you cannot collect anymore rewards.
 
-						Goal: The goal is to find the shortest path from the starting room that yields the most reward, based on the above new reward design. 
+						Goal: The goal is to find the shortest path from the starting room to the room with a chest with the highest reward.
 
 						This is the starting room:
 						room {}
 
-						Give me only two different next rooms to go to from the starting room that can help in yielding the most reward using as few steps as possible. Please format your answer as:
+						Give me only two different next rooms to go to from the starting room that can help in reaching the room with a chest with the highest reward using as few steps as possible. Please format your answer as:
 						Go from room <N> to room <N>.
 
 						""".format(start_room)
@@ -1280,19 +1308,55 @@ for run_no in range(1,2):
 
 						step=0
 
-
 				else:
-					root_prompt+="\n"+configuration_msg
+					
+					if reval_flag==0 and step==6: 
 
-					input = [{
+						print("starting reward revaluation>>>>")
+
+						reval_prompt = """
+						Now you have been told that the reward of the chest in room 8 has been changed to 12 and the reward of the chest in room 15 has been changed to 48. You can collect the reward only once and only from one chest.
+						If you enter a room with a chest, then you must collect the reward from that chest, and you cannot collect anymore rewards.
+
+						Goal: The goal is to find the shortest path from the starting room to the room with a chest with the highest reward.
+
+						This is the starting room:
+						room {}
+
+						Give me only two different next rooms to go to from the starting room that can help in reaching the room with a chest with the highest reward using as few steps as possible. Please format your answer as:
+						Go from room <N> to room <N>.
+
+						""".format(start_room)
+
+						current_room = start_room
+						reval_flag=1
+
+						root_prompt+="\n"+reval_prompt
+
+						input = [{
 						"role": "system",
 						"content": "you are an AI assistant",
 					}]
 
-					input.append({
-						"role": "user",
-						"content": root_prompt,
-						})
+						input.append({
+							"role": "user",
+							"content": root_prompt,
+							})
+
+						step=0
+
+					else:
+						root_prompt+="\n"+configuration_msg
+
+						input = [{
+							"role": "system",
+							"content": "you are an AI assistant",
+						}]
+
+						input.append({
+							"role": "user",
+							"content": root_prompt,
+							})
 
 
 
@@ -1314,7 +1378,6 @@ for run_no in range(1,2):
 			
 			print("done solving problem {}".format(start_room))
 					
-
 
 
 

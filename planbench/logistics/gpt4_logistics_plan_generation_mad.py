@@ -1,13 +1,14 @@
 import openai
 import argparse
 import os
-
+from logistics_plan_generation_fewshot_examples import standard_prompt
 import time
 import json
 from tqdm import tqdm
-openai.api_type = "azure"
-openai.api_base = "https://gcrgpt4aoai3.openai.azure.com/"
-openai.api_version = "2023-03-15-preview" # can use the older api version openai.api_version = "2022-12-01"
+from openai import AzureOpenAI
+
+
+
 
 def check_path(path):
 	if not os.path.exists(path):
@@ -16,16 +17,62 @@ def check_path(path):
 parser = argparse.ArgumentParser()
 
 parser.add_argument
-parser.add_argument('--openai_api_key', type = str, help='openai key', required= True)
+
 parser.add_argument('--output_dir',type=str, help='directory name where output log files will be stored', required= True)
+
 args = parser.parse_args()
 print(args)
 
-openai.api_key = args.openai_api_key
+
 
 with open('task_1_plan_generation.json') as f:
 	data = json.load(f)
 i=0
+
+agents = 2
+rounds = 3
+
+def generate_answer(answer_context):
+    try:
+    	completion = client.chat.completions.create(model=deployment_name, messages=answer_context,max_tokens=2000,n=1)
+			
+			
+
+       
+       
+    except:
+        print("retrying due to an error......")
+        time.sleep(60)
+        return generate_answer(answer_context)
+
+    return completion
+
+def construct_assistant_message(completion):
+    content = completion.choices[0].message.content
+    return {"role": "assistant", "content": content}
+
+
+def construct_message(agents, idx,query):
+
+    
+    prefix_string = "These are the recent/updated opinions from other agents: "
+
+    for agent in agents:
+        agent_response = agent[idx]["content"]
+        response = "\n\n One agent response: ```{}```".format(agent_response)
+
+        prefix_string = prefix_string + response
+
+    query_string = """\n\n Use these opinions carefully as additional advice, can you provide an updated answer?
+    {}
+
+   
+    """.format( query)  
+    prefix_string = prefix_string + query_string
+    return {"role": "user", "content": prefix_string}
+
+
+
 for instance in tqdm(data["instances"]):
 
 
@@ -58,16 +105,22 @@ for instance in tqdm(data["instances"]):
 	Once an airplane is flown from one city to another the airplane is not at the from-location and is at the to-location.
 
 
-	
+	Here are three examples:
+	{}
 
 	Here is the task:
 	
+	Starting state:
+	{}
+
+	Goal:
 	{}
 	
-	What is the plan to achieve my goal? Just give the actions in the plan.
+	
+	Please provide each action for the plan to achieve the goal from the starting state between a [START] and a [END] token.
 
 
-	""".format(instance['query'].split("[STATEMENT]")[2])
+	""".format(standard_prompt, instance['query'].split("[STATEMENT]")[2].split("My goal is to")[0],instance['query'].split("[STATEMENT]")[2].split("My plan is as follows:")[0].split("\n")[-3])
 
 	test_dir = './logs/'
 	check_path(test_dir)
@@ -78,53 +131,45 @@ for instance in tqdm(data["instances"]):
 		w.write(prompt +'\n')
 
 
-
-
-
-	input = [{
-		"role": "system",
-		"content": "you are an AI assistant",
-	}]
-
-	input.append({
-		"role": "user",
-		"content": prompt,
-	})
-
-	another_cur_try = 0
-	while another_cur_try <5:
-		try:
-			response = openai.ChatCompletion.create(
-				engine='gpt-4-32k',
-				messages=input,temperature=0.0,top_p = 0,
-					max_tokens=2000)
-
-			num_input_tokens= response["usage"]["prompt_tokens"]
-			num_output_tokens= response["usage"]["completion_tokens"]
-
-			break
-
-		except Exception as e:
-			err = f"Error: {str(e)}"
-			print(err)
-			time.sleep(60)
-			another_cur_try+=1
-			
-			continue
-	instance["llm_raw_response"] = response.choices[0].message.content
 	
-	with open(output_dir+'task_1_plan_generation.json', 'w') as file:
-		json.dump(data, file, indent=4)
+	agent_contexts = [[{"role": "user", "content":prompt}] for agent in range(agents)]
 
+
+
+	for round in range(rounds):
+	    for agent_i, agent_context in enumerate(agent_contexts):
+	       
+	        
+	        if round != 0:
+	            agent_contexts_other = agent_contexts[:agent_i] + agent_contexts[agent_i+1:]
+	            message = construct_message(agent_contexts_other, 2*round - 1, instance['query'].split("[STATEMENT]")[2])
+	            agent_context.append(message)
+
+	            print("message: ", message)
+
+	        completion = generate_answer(agent_context)
+
+	        assistant_message = construct_assistant_message(completion)
+	        agent_context.append(assistant_message)
+	        
+	        print("Round {}, agent number {}, response {}".format(round+1, agent_i+1,completion))
+
+
+
+	
 
 	with open(output_dir+'problem{}.log'.format(i+1), 'a') as w:
-		w.write("GPT-4 Response>>>>>>>\n"+response.choices[0].message.content)
+		w.write("\nGPT-4 Agent1 Response>>>>>>>\n"+agent_contexts[0][-1]["content"])
 		
 
-	
+	with open(output_dir+'problem{}.log'.format(i+1), 'a') as w:
+		w.write("\nGPT-4 Agent2 Response>>>>>>>\n"+agent_contexts[1][-1]["content"])
+		
+
 	with open(output_dir+'problem{}.log'.format(i+1), 'a') as w:
 		w.write("\nGround truth answer>>>>>>>\n"+instance['ground_truth_plan'])
+
+	
 	
 	print("done solving problem {}".format(i+1))
 	i=i+1
-

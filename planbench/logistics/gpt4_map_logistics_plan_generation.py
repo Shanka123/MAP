@@ -7,9 +7,8 @@ import os
 import argparse
 import re
 from tqdm import tqdm
-openai.api_type = "azure"
-openai.api_base = "https://gcrgpt4aoai3.openai.azure.com/"
-openai.api_version = "2023-03-15-preview" # can use the older api version openai.api_version = "2022-12-01"
+from openai import AzureOpenAI
+
 
 
 def check_path(path):
@@ -21,13 +20,11 @@ def check_path(path):
 parser = argparse.ArgumentParser()
 
 parser.add_argument
-parser.add_argument('--openai_api_key', type = str, help='openai key', required= True)
 parser.add_argument('--output_dir',type=str, help='directory name where output log files will be stored', required= True)
 
 args = parser.parse_args()
 print(args)
 
-openai.api_key = args.openai_api_key
 
 def move_validator_module(current_state,action):
 
@@ -65,7 +62,7 @@ def move_validator_module(current_state,action):
 
 		Current state: 
 		As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_0_0, airplane_1 is at location_0_0, package_0 is at location_1_0, truck_0 is at location_0_0, truck_1 is at location_1_0, location_0_0 is in the city city_0 and location_1_0 is in the city city_1.
-		My goal is to have that package_0 is at location_0_0.
+		
 
 		Action: 
 		fly airplane_1 from location_0_0 to location_1_0.
@@ -78,7 +75,7 @@ def move_validator_module(current_state,action):
 
 		Current state:
 		As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_1_0, package_0 is at location_1_0, package_1 is at location_0_0, truck_0 is at location_0_0, truck_1 is at location_1_0, location_0_0 is in the city city_0 and location_1_0 is in the city city_1.
-		My goal is to have that package_0 is at location_1_0 and package_1 is at location_1_0.
+		
 
 		Action:
 		load package_1 into airplane_0 at location_0_0.
@@ -115,11 +112,10 @@ def move_validator_module(current_state,action):
 	while another_cur_try <10:
 		try:
 			time1 = time.time()
+			validator_response= client.chat.completions.create(model=deployment_name, messages=move_validator_input,temperature=0.0,top_p = 0,max_tokens=1000)
+			
 
-			validator_response = openai.ChatCompletion.create(
-				engine='gpt-4-32k',
-				messages=move_validator_input,temperature=0.0,top_p=0,
-					max_tokens=1000)
+			
 
 			time2 = time.time()
 			another_cur_try+=1
@@ -133,7 +129,7 @@ def move_validator_module(current_state,action):
 			# validator_response_time.append(time2-time1)
 
 			char_list_response = validator_response.choices[0].message.content.split('\n')[-1].replace(".","").split(" ")
-			if 'invalid' in char_list_response or 'Invalid' in char_list_response:
+			if 'invalid' in char_list_response or 'Invalid' in char_list_response or 'not valid' in char_list_response or 'not a valid' in char_list_response :
 				move_validity = 'no'
 			else:
 				move_validity = 'yes'
@@ -162,72 +158,51 @@ def state_predictor_module(current_state,action):
 
 	state_predictor_prompt= """
 
-		I have to plan logistics to transport packages within cities via trucks and between cities via airplanes. Locations within a city are directly connected (trucks can move between any two such locations), and so are the cities. In each city there is exactly one truck and each city has one location that serves as an airport.
-		Here are the actions that can be performed:
+	You will be given a current state, and an action. Your task is to predict the next state that results after taking the action at the current state.
+    
+    
+    Here are two examples:
 
-		Load a package into a truck. For example, load package_1 into truck_1 at location_1_1.
-		Load a package into an airplane. For example, load package_1 into airplane_1 at location_1_1.
-		Unload a package from a truck. For example, unload package_1 from truck_1 at location_1_1.
-		Unload a package from an airplane. For example, unload package_1 from airplane_1 at location_1_1.
-		Drive a truck from one location to another location. For example, drive truck_1 from location_1_1 to location_1_2 in city_1.
-		Fly an airplane from one city to another city. For example, fly airplane_1 from location_1_1 to location_2_1. Here location_1_1 is the airport in city_1 and location_2_1 is the airport in city_2.
+    Example 1:
 
-		The following are the restrictions on the actions:
-		A package can be loaded into a truck only if the package and the truck are in the same location.
-		Once a package is loaded into a truck, the package is not at the location and is in the truck.   
-		A package can be loaded into an airplane only if the package and the airplane are in the same location.
-		Once a package is loaded into an airplane, the package is not at the location and is in the airplane.
-		A package can be unloaded from a truck only if the package is in the truck.
-		Once a package is unloaded from a truck, the package is not in the truck and is at the location of the truck.
-		A package can be unloaded from an airplane only if the package in the airplane.
-		Once a package is unloaded from an airplane, the package is not in the airplane and is at the location of the airplane.   
-		A truck can be driven from one location to another if the truck is at the from-location and both from-location and to-location are locations in the same city.
-		Once a truck is driven from one location to another, it is not at the from-location and is at the to-location.
-		An airplane can be flown from one city to another if the from-location and the to-location are airports and the airplane is at the from-location.
-		Once an airplane is flown from one city to another the airplane is not at the from-location and is at the to-location.
+    Current state: 
+    As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_0_0, airplane_1 is at location_0_0, package_0 is at location_1_0, truck_0 is at location_0_0, truck_1 is at location_1_0, location_0_0 is in the city city_0 and location_1_0 is in the city city_1.
+    
 
-		Goal: The goal is to predict the next state that results after taking the action at the current state.
+    Action: 
+    fly airplane_1 from location_0_0 to location_1_0.
 
-		Here are two examples:
-
-		Example 1:
-
-		Current state: 
-		As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_0_0, airplane_1 is at location_0_0, package_0 is at location_1_0, truck_0 is at location_0_0, truck_1 is at location_1_0, location_0_0 is in the city city_0 and location_1_0 is in the city city_1.
-		My goal is to have that package_0 is at location_0_0.
-
-		Action: 
-		fly airplane_1 from location_0_0 to location_1_0.
-
-		Next state: 
-		As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_0_0, airplane_1 is at location_1_0, package_0 is at location_1_0, truck_0 is at location_0_0, truck_1 is at location_1_0, location_0_0 is in the city city_0 and location_1_0 is in the city city_1.
-		My goal is to have that package_0 is at location_0_0.
+    Next state: 
+    As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_0_0, airplane_1 is at location_1_0, package_0 is at location_1_0, truck_0 is at location_0_0, truck_1 is at location_1_0, location_0_0 is in the city city_0 and location_1_0 is in the city city_1.
+   
 
 
-		Example 2:
+    Example 2:
 
-		Current state:
-		As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_1_0, package_0 is at location_1_0, truck_0 is at location_0_0, truck_1 is at location_1_0, location_0_0 is in the city city_0, location_0_1 is in the city city_0, location_1_0 is in the city city_1 and location_1_1 is in the city city_1.
-		My goal is to have that package_0 is at location_1_1.
+    Current state:
+    As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_1_0, package_0 is at location_1_0, truck_0 is at location_0_0, truck_1 is at location_1_0, location_0_0 is in the city city_0, location_0_1 is in the city city_0, location_1_0 is in the city city_1 and location_1_1 is in the city city_1.
+    
 
-		Action:
-		load package_0 into truck_1 at location_1_0.
+    Action:
+    load package_0 into truck_1 at location_1_0.
 
-		Next state:
-		As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_1_0, truck_0 is at location_0_0, truck_1 is at location_1_0, package_0 is in truck_1, location_0_0 is in the city city_0, location_0_1 is in the city city_0, location_1_0 is in the city city_1 and location_1_1 is in the city city_1.
-		My goal is to have that package_0 is at location_1_1.
+    Next state:
+    As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_1_0, truck_0 is at location_0_0, truck_1 is at location_1_0, package_0 is in truck_1, location_0_0 is in the city city_0, location_0_1 is in the city city_0, location_1_0 is in the city city_1 and location_1_1 is in the city city_1.
+   
 
-		Here is the task:
+    Here is the task:
 
-		Current state:
-		{}
+    Current state:
+    {}
+    
+    Action:
+    {}.
+    
+    Please note that just because a package is in a truck at location A doesn’t mean the package is at location A, the package needs to be unloaded before it’s at location A.
+    Please provide your answer for the next state that results after taking the action at the current state in the following format only: “Next state: < >”.
 
-		Action:
-		{}.
 
-		Next state:
-
-		""".format(current_state,action)
+	""".format(current_state,action)
 
 	state_predictor_input = [{
 		"role": "system",
@@ -245,10 +220,10 @@ def state_predictor_module(current_state,action):
 		try:
 			time1 = time.time()
 
-			predictor_response = openai.ChatCompletion.create(
-				engine='gpt-4-32k',
-				messages=state_predictor_input,temperature=0.0,top_p=0,
-					max_tokens=1000)
+			predictor_response= client.chat.completions.create(model=deployment_name, messages=state_predictor_input,temperature=0.0,top_p = 0,max_tokens=1000)
+			
+
+			
 			time2=time.time()
 
 			# global num_predictor_calls
@@ -264,77 +239,61 @@ def state_predictor_module(current_state,action):
 			cur_try+=1
 			continue
 
-	print("predictor_response>>",predictor_response)
+	print("predictor_response>>",predictor_response.choices[0].message.content)
 	
 	# state_predictor_output.append(json.loads(predictor_response.choices[0].message.content.split("\n")[0].split("=")[-1]))
 	# state_predictor_output.append(json.loads(predictor_response.choices[0].message.content.split("\n")[1].split("=")[-1]))
 	# state_predictor_output.append(json.loads(predictor_response.choices[0].message.content.split("\n")[2].split("=")[-1]))
-	return predictor_response.choices[0].message.content
+	return predictor_response.choices[0].message.content.split("Next state:")[-1]
 
 
 
 
-def task_coordination_module(current_state):
+def task_coordination_module(current_state,goal):
 
 	task_coordination_prompt= """
 
-		I have to plan logistics to transport packages within cities via trucks and between cities via airplanes. Locations within a city are directly connected (trucks can move between any two such locations), and so are the cities. In each city there is exactly one truck and each city has one location that serves as an airport.
-		Here are the actions that can be performed:
+	You will be given a current state and the goal, and your task is to say whether the goal is acheived in the current state.
+    
+    Here are two examples:
 
-		Load a package into a truck. For example, load package_1 into truck_1 at location_1_1.
-		Load a package into an airplane. For example, load package_1 into airplane_1 at location_1_1.
-		Unload a package from a truck. For example, unload package_1 from truck_1 at location_1_1.
-		Unload a package from an airplane. For example, unload package_1 from airplane_1 at location_1_1.
-		Drive a truck from one location to another location. For example, drive truck_1 from location_1_1 to location_1_2 in city_1.
-		Fly an airplane from one city to another city. For example, fly airplane_1 from location_1_1 to location_2_1. Here location_1_1 is the airport in city_1 and location_2_1 is the airport in city_2.
+    Example 1:
 
-		The following are the restrictions on the actions:
-		A package can be loaded into a truck only if the package and the truck are in the same location.
-		Once a package is loaded into a truck, the package is not at the location and is in the truck.   
-		A package can be loaded into an airplane only if the package and the airplane are in the same location.
-		Once a package is loaded into an airplane, the package is not at the location and is in the airplane.
-		A package can be unloaded from a truck only if the package is in the truck.
-		Once a package is unloaded from a truck, the package is not in the truck and is at the location of the truck.
-		A package can be unloaded from an airplane only if the package in the airplane.
-		Once a package is unloaded from an airplane, the package is not in the airplane and is at the location of the airplane.   
-		A truck can be driven from one location to another if the truck is at the from-location and both from-location and to-location are locations in the same city.
-		Once a truck is driven from one location to another, it is not at the from-location and is at the to-location.
-		An airplane can be flown from one city to another if the from-location and the to-location are airports and the airplane is at the from-location.
-		Once an airplane is flown from one city to another the airplane is not at the from-location and is at the to-location.
+    Current state:
+    As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_0_0, airplane_1 is at location_0_0, package_0 is in airplane_0, truck_0 is at location_0_0, truck_1 is at location_1_0, location_0_0 is in the city city_0 and location_1_0 is in the city city_1.
+    
+    Goal:
+    My goal is to have that package_0 is at location_0_0.
 
-		Goal: The goal is to only predict whether the package is at the goal location in the current state.
+    Thoughts: My goal is to have that package_0 is at location_0_0. package_0 is currently in airplane_0. However, if a package is in an airplane, the package is not at the location and is in the airplane. Hence the package is not at location 0_0.
 
-		Here are two examples:
+    Answer: no 
 
-		Example 1:
+    Example 2:
 
-		Current state:
-		As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_0_0, airplane_1 is at location_0_0, package_0 is in airplane_0, truck_0 is at location_0_0, truck_1 is at location_1_0, location_0_0 is in the city city_0 and location_1_0 is in the city city_1.
-		My goal is to have that package_0 is at location_0_0.
+    Current state:
+    As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_0_0, airplane_1 is at location_1_0, truck_0 is at location_0_0, truck_1 is at location_1_0, package_0 is at location_0_0, location_0_0 is in the city city_0 and location_1_0 is in the city city_1.
+    
+    Goal:
+    My goal is to have that package_0 is at location_0_0.
 
-		Answer: 
+    Thoughts: My goal is to have that package_0 is at location_0_0. package_0 is currently at location 0_0. 
 
-		package_0 is currently in airplane_0. Though airplane_0 is in location 0_0, according to the restriction, once a package is in an airplane, the package is not at the location and is in the airplane. Hence the package is not at location 0_0. However according to the goal, package_0 should be at location_0_0. Hence no. 
-
-		Example 2:
-
-		Current state:
-		As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_0_0, airplane_1 is at location_1_0, truck_0 is at location_0_0, truck_1 is at location_1_0, package_0 is at location_0_0, location_0_0 is in the city city_0 and location_1_0 is in the city city_1.
-		My goal is to have that package_0 is at location_0_0.
-
-		Answer:
-		package_0 is currently at location 0_0. However according to the goal, package_0 should be at location_0_0. Hence yes. 
+    Answer: yes
 
 
-		Here is the task:
+    Here is the task:
 
-		Current state:
-		{}
+    Current state:
+    {}
 
-		Answer:
+    Goal:
+    {}
 
+    Please note that just because a package is in a truck at location A doesn’t mean the package is at location A, the package needs to be unloaded before it’s at location A.
+    First give your thoughts after "Thoughts:". Then give your final answer after "Answer:".
 
-		""".format(current_state)
+	""".format(current_state,goal)
 
 
 	task_coordination_input = [{
@@ -353,10 +312,10 @@ def task_coordination_module(current_state):
 		try:
 			time1=time.time()
 
-			task_coordination_response = openai.ChatCompletion.create(
-				engine='gpt-4-32k',
-				messages=task_coordination_input,temperature=0.0,top_p=0,
-					max_tokens=1000)
+			task_coordination_response = client.chat.completions.create(model=deployment_name, messages=task_coordination_input,temperature=0.0,top_p = 0,max_tokens=1000)
+			
+
+			
 			time2=time.time()
 
 			
@@ -364,18 +323,18 @@ def task_coordination_module(current_state):
 			# num_coordinator_calls+=1
 
 			print("coordinator response>>>",task_coordination_response.choices[0].message.content)
+			extracted_response = task_coordination_response.choices[0].message.content.split("Answer:")[-1]
 			
-			if "yes" in task_coordination_response.choices[0].message.content or "Yes" in task_coordination_response.choices[0].message.content:
-				if "no" in task_coordination_response.choices[0].message.content or "No" in task_coordination_response.choices[0].message.content:
+			if "yes" in extracted_response or "Yes" in extracted_response:
 				
 
-					match_flag=0
-				else:
-					match_flag=1
+				
+				match_flag=1
 			else:
 				match_flag=0
 				
 			
+			print("coordinator extracted response and match flag>>>",extracted_response,match_flag)
 			break
 
 		except Exception as e:
@@ -388,7 +347,10 @@ def task_coordination_module(current_state):
 	return match_flag
 
 
-def actor_module_propose_action(previous_move,actor_input,temp_current_configuration):
+def actor_module_propose_action(previous_move,actor_input,temp_current_configuration,goal):
+
+
+	
 
 
 	num_tries = 0
@@ -401,22 +363,18 @@ def actor_module_propose_action(previous_move,actor_input,temp_current_configura
 			try:
 				if check_flag==1:
 					
+					actor_response = client.chat.completions.create(model=deployment_name, messages=actor_input,temperature=0.1*cur_try,max_tokens=200)
+			
 
-
-					actor_response = openai.ChatCompletion.create(
-						engine='gpt-4-32k',
-						messages=actor_input,temperature=0.1*cur_try,
-							max_tokens=200)
+					
 
 					# num_input_tokens+=actor_response["usage"]["prompt_tokens"]
 					# num_output_tokens+=actor_response["usage"]["completion_tokens"]
 
 				else:
+					actor_response = client.chat.completions.create(model=deployment_name, messages=actor_input,temperature=0.0,top_p=0,max_tokens=200)
+			
 					
-					actor_response = openai.ChatCompletion.create(
-						engine='gpt-4-32k',
-						messages=actor_input,temperature=0.0,top_p=0,
-							max_tokens=200)
 
 					# num_input_tokens+=actor_response["usage"]["prompt_tokens"]
 					# num_output_tokens+=actor_response["usage"]["completion_tokens"]
@@ -482,11 +440,14 @@ def actor_module_propose_action(previous_move,actor_input,temp_current_configura
 					Current state:
 					{}
 
+					Goal:
+					{}
+
 					Please try again to give me only the next action possible from the current state that would help in achieving the goal. 
 					Please provide the next action in between a [START] and a [END] token.
 
 
-					""".format(temp_current_configuration)
+					""".format(temp_current_configuration,goal)
 
 
 					actor_input.append({
@@ -523,11 +484,14 @@ def actor_module_propose_action(previous_move,actor_input,temp_current_configura
 			Current state:
 			{}
 
+			Goal:
+			{}
+
 			Please try again to give me only the next action possible from the current state that would help in achieving the goal. 
 			Please provide the next action in between a [START] and a [END] token.
 
 
-			""".format(move_validator_response,temp_current_configuration[0])
+			""".format(move_validator_response,temp_current_configuration,goal)
 
 
 			actor_input.append({
@@ -590,43 +554,50 @@ for instance in tqdm(data["instances"]):
 
 	Starting state:
 	As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_0_0, airplane_1 is at location_0_0, package_0 is at location_1_0, truck_0 is at location_0_0, truck_1 is at location_1_0, location_0_0 is in the city city_0 and location_1_0 is in the city city_1.
+	
+	Goal:
 	My goal is to have that package_0 is at location_0_0.
 
 	My actions to achieve the goal from the starting state:
 
-	fly airplane_1 from location_0_0 to location_1_0
-	load package_0 into airplane_1 at location_1_0
-	fly airplane_1 from location_1_0 to location_0_0
-	unload package_0 from airplane_1 at location_0_0
+	[START] fly airplane_1 from location_0_0 to location_1_0 [END]
+	[START] load package_0 into airplane_1 at location_1_0 [END]
+	[START] fly airplane_1 from location_1_0 to location_0_0 [END]
+	[START] unload package_0 from airplane_1 at location_0_0 [END]
 
 
 	Example 2:
 
 	Starting state:
 	As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_1_0, package_0 is at location_1_0, truck_0 is at location_0_0, truck_1 is at location_1_0, location_0_0 is in the city city_0, location_0_1 is in the city city_0, location_1_0 is in the city city_1 and location_1_1 is in the city city_1.
+	
+	Goal:
 	My goal is to have that package_0 is at location_1_1.
 
 	My actions to achieve the goal from the starting state:
 
-	load package_0 into truck_1 at location_1_0
-	drive truck_1 from location_1_0 to location_1_1 in city_1
-	unload package_0 from truck_1 at location_1_1
+	[START] load package_0 into truck_1 at location_1_0 [END]
+	[START] drive truck_1 from location_1_0 to location_1_1 in city_1 [END]
+	[START] unload package_0 from truck_1 at location_1_1 [END]
 
 	Example 3:
 
 	Starting state:
 	As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_0_0, package_0 is at location_0_1, truck_0 is at location_0_0, truck_1 is at location_1_1, location_0_0 is in the city city_0, location_0_1 is in the city city_0, location_1_0 is in the city city_1 and location_1_1 is in the city city_1.
+	
+	Goal:
 	My goal is to have that package_0 is at location_1_0.
 
 	My actions to achieve the goal from the starting state:
 
-	drive truck_0 from location_0_0 to location_0_1 in city_0
-	load package_0 into truck_0 at location_0_1
-	drive truck_0 from location_0_1 to location_0_0 in city_0
-	unload package_0 from truck_0 at location_0_0
-	load package_0 into airplane_0 at location_0_0
-	fly airplane_0 from location_0_0 to location_1_0
-	unload package_0 from airplane_0 at location_1_0
+	[START] drive truck_0 from location_0_0 to location_0_1 in city_0 [END]
+	[START] load package_0 into truck_0 at location_0_1 [END]
+	[START] drive truck_0 from location_0_1 to location_0_0 in city_0 [END]
+	[START] unload package_0 from truck_0 at location_0_0 [END]
+	[START] load package_0 into airplane_0 at location_0_0 [END]
+	[START] fly airplane_0 from location_0_0 to location_1_0 [END]
+	[START] unload package_0 from airplane_0 at location_1_0 [END]
+
 
 
 	Here is the task:
@@ -634,15 +605,20 @@ for instance in tqdm(data["instances"]):
 	Starting state:
 	{}
 	
+	Goal:
+	{}
+
+
 	Give me only the next action possible from the starting state that would help in achieving the goal. 
 	Please provide the next action in between a [START] and a [END] token.
 
 
 
-	""".format(instance['query'].split("[STATEMENT]")[2].split("My plan is as follows:")[0])
+	""".format(instance['query'].split("[STATEMENT]")[2].split("My goal is to")[0],instance['query'].split("[STATEMENT]")[2].split("My plan is as follows:")[0].split("\n")[-3])
 
-	next_state_prediction = deepcopy(instance['query'].split("[STATEMENT]")[2])
-
+	next_state_prediction = deepcopy(instance['query'].split("[STATEMENT]")[2].split("My goal is to")[0])
+	goal = deepcopy(instance['query'].split("[STATEMENT]")[2].split("My plan is as follows:")[0].split("\n")[-3])
+	
 	
 
 	input = [{
@@ -668,26 +644,28 @@ for instance in tqdm(data["instances"]):
 				
 		print("config>>",first_temp_current_configuration)
 				
-		move_proposal,previous_move = actor_module_propose_action(previous_move, input,first_temp_current_configuration)
+		move_proposal,previous_move = actor_module_propose_action(previous_move, input,first_temp_current_configuration,goal)
 					
 		print("move proposal>>",move_proposal)
 		gpt_actions+=move_proposal+'\n'
 
 		next_state_prediction = state_predictor_module(first_temp_current_configuration, move_proposal)
 
-		if task_coordination_module(next_state_prediction):
+		if task_coordination_module(next_state_prediction,goal):
 			flag=1
 
 			internal_configuration_msg = """
 			Current state:
 			{}
 
+			Goal:
+			{}
 		
 			Give me only the next action possible from the current state that would help in achieving the goal. 
 			Please provide the next action in between a [START] and a [END] token.
 			
 
-			""".format(next_state_prediction)
+			""".format(next_state_prediction,goal)
 			print("internal configuration message>>>",internal_configuration_msg)
 
 			prompt+="\n"+move_proposal+'.'+"\n"+internal_configuration_msg
@@ -713,12 +691,14 @@ for instance in tqdm(data["instances"]):
 			Current state:
 			{}
 
-		
+			Goal:
+			{}
+
 			Give me only the next action possible from the current state that would help in achieving the goal. 
 			Please provide the next action in between a [START] and a [END] token.
 			
 
-			""".format(next_state_prediction)
+			""".format(next_state_prediction,goal)
 
 			print("internal configuration message>>>",internal_configuration_msg)
 
@@ -764,4 +744,3 @@ for instance in tqdm(data["instances"]):
 	
 	print("done solving problem {}".format(i+1))
 	i=i+1
-

@@ -6,6 +6,7 @@ import json
 import numpy as np
 import os
 import argparse
+
 openai.api_type = "azure"
 openai.api_base = "https://gcrgpt4aoai3.openai.azure.com/"
 openai.api_version = "2023-03-15-preview" # can use the older api version openai.api_version = "2022-12-01"
@@ -72,8 +73,10 @@ for start_room in range(1,16):
 		- Room 12 is connected to room 15. 
 		- There is a chest with a reward of 50 for visiting room 8 and there is a chest with a reward of 10 for visiting room 15. 
 		- You can collect the reward only once and only from one chest. 
+		- If you enter a room with a chest, then you must collect the reward from that chest, and you cannot collect anymore rewards.
 
-		Goal: The goal is to find the shortest path from the starting room that yields the most reward.
+		Goal: The goal is to find the shortest path from the starting room to the room with a chest with the highest reward.
+
 
 		This is the starting room:
 		room {}
@@ -81,7 +84,7 @@ for start_room in range(1,16):
 		Starting from room {}, please list the room numbers in order, including {}, separated by commas. Please limit your answer to a maximum path length of 6.
 		 
 		Your answer should only be in the format as below:
-		The shortest path from room {} that yields the most reward is: {}, 
+		The shortest path from room {} to the room with a chest with the highest reward is: {}, 
 
 		
 
@@ -105,6 +108,9 @@ for start_room in range(1,16):
 
 		with open(output_dir+'problem{}.log'.format(start_room), 'a') as w:
 			w.write(prompt +'\n')
+
+		
+
 		
 		cur_try=0
 		
@@ -143,10 +149,12 @@ for start_room in range(1,16):
 			w.write("GPT-4 Response before rewardReval >>>>>>>\n"+response.choices[0].message.content)
 
 
+
 		reval_prompt = """
 		Now you have been told that the reward of the chest in room 8 has been changed to 12 and the reward of the chest in room 15 has been changed to 48. You can collect the reward only once and only from one chest.
+		If you enter a room with a chest, then you must collect the reward from that chest, and you cannot collect anymore rewards.
 
-		Goal: The goal is to find the shortest path from the starting room that yields the most reward, based on the above new reward design.
+		Goal: The goal is to find the shortest path from the starting room to the room with a chest with the highest reward.
 
 		This is the starting room:
 		room {}
@@ -154,7 +162,7 @@ for start_room in range(1,16):
 		Starting from room {}, please list the room numbers in order, including {}, separated by commas. Please limit your answer to a maximum path length of 6.
 		 
 		Your answer should only be in the format as below:
-		The shortest path from room {} that yields the most reward is: {}, 
+		The shortest path from room {} to the room with a chest with the highest reward is: {}, 
 
 		""".format(start_room,start_room,start_room,start_room,start_room)
 
@@ -210,7 +218,6 @@ for start_room in range(1,16):
 
 		with open(output_dir+'problem{}.log'.format(start_room), 'a') as w:
 			w.write("\n\n Number of input tokens = {} \n Number of output tokens = {}".format(num_input_tokens,num_output_tokens))
-	
 	
 		print("done solving problem {}".format(start_room))
 				
