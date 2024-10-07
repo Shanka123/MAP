@@ -1,4 +1,7 @@
-# This repository contains code for the paper titled "Improving Planning With Large Language Models: A Modular Agentic Architecture"
+
+# MAP: Modular Agentic Planner
+Official repository for the paper - "[Improving Planning With Large Language Models: A Modular Agentic Architecture](https://arxiv.org/pdf/2310.00194)." 
+
 
 ## Requirements
 - python 3.9.17
