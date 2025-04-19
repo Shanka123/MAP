@@ -8,6 +8,7 @@ import argparse
 import re
 from tqdm import tqdm
 from openai import AzureOpenAI
+import pickle
 
 
 
@@ -149,6 +150,12 @@ def move_validator_module(current_state,action):
 			continue
 	print("validator response>>>",validator_response.choices[0].message.content)
 	print("validity>>>",move_validity)
+
+	
+
+
+	
+
 	return move_validity, validator_response.choices[0].message.content
 
 
@@ -240,6 +247,8 @@ def state_predictor_module(current_state,action):
 			continue
 
 	print("predictor_response>>",predictor_response.choices[0].message.content)
+
+
 	
 	# state_predictor_output.append(json.loads(predictor_response.choices[0].message.content.split("\n")[0].split("=")[-1]))
 	# state_predictor_output.append(json.loads(predictor_response.choices[0].message.content.split("\n")[1].split("=")[-1]))
@@ -344,7 +353,127 @@ def task_coordination_module(current_state,goal):
 			cur_try+=1
 			continue
 
+	
+
 	return match_flag
+
+
+def subgoal_module(start_state,goal):
+	subgoal_prompt = """
+
+		I have to plan logistics to transport packages within cities via trucks and between cities via airplanes. Locations within a city are directly connected (trucks can move between any two such locations), and so are the cities. In each city there is exactly one truck and each city has one location that serves as an airport.
+		Here are the actions that can be performed:
+
+		Load a package into a truck. For example, load package_1 into truck_1 at location_1_1.
+		Load a package into an airplane. For example, load package_1 into airplane_1 at location_1_1.
+		Unload a package from a truck. For example, unload package_1 from truck_1 at location_1_1.
+		Unload a package from an airplane. For example, unload package_1 from airplane_1 at location_1_1.
+		Drive a truck from one location to another location. For example, drive truck_1 from location_1_1 to location_1_2 in city_1.
+		Fly an airplane from one city to another city. For example, fly airplane_1 from location_1_1 to location_2_1. Here location_1_1 is the airport in city_1 and location_2_1 is the airport in city_2.
+
+		The following are the restrictions on the actions:
+		A package can be loaded into a truck only if the package and the truck are in the same location.
+		Once a package is loaded into a truck, the package is not at the location and is in the truck.   
+		A package can be loaded into an airplane only if the package and the airplane are in the same location.
+		Once a package is loaded into an airplane, the package is not at the location and is in the airplane.
+		A package can be unloaded from a truck only if the package is in the truck.
+		Once a package is unloaded from a truck, the package is not in the truck and is at the location of the truck.
+		A package can be unloaded from an airplane only if the package in the airplane.
+		Once a package is unloaded from an airplane, the package is not in the airplane and is at the location of the airplane.   
+		A truck can be driven from one location to another if the truck is at the from-location and both from-location and to-location are locations in the same city.
+		Once a truck is driven from one location to another, it is not at the from-location and is at the to-location.
+		An airplane can be flown from one city to another if the from-location and the to-location are airports and the airplane is at the from-location.
+		Once an airplane is flown from one city to another the airplane is not at the from-location and is at the to-location.
+
+		Goal: The goal is to generate a subgoal from the starting state, that helps in achieving the goal.
+
+		Here are two examples:
+
+		Example 1: 
+
+		Starting state:
+		As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_0_0, airplane_1 is at location_0_0, package_0 is at location_1_0, truck_0 is at location_0_0, truck_1 is at location_1_0, location_0_0 is in the city city_0 and location_1_0 is in the city city_1.
+		
+		Goal:
+		My goal is to have that package_0 is at location_0_0.
+
+		Thoughts:
+		package_0 is currently at location_1_0, which is an airport in the city city_1. To have package_0 at location_0_0, which is an airport in city city_0, first I need to load package_0 into an airplane.
+
+		Subgoal:
+		My goal is to have that package_0 in airplane_1.
+		
+		Example 2:
+
+		Starting state:
+		As initial conditions I have that, location_0_0 is an airport, location_1_0 is an airport, airplane_0 is at location_0_0, package_0 is at location_0_1, truck_0 is at location_0_0, truck_1 is at location_1_1, location_0_0 is in the city city_0, location_0_1 is in the city city_0, location_1_0 is in the city city_1 and location_1_1 is in the city city_1.
+		
+		Goal:
+		My goal is to have that package_0 is at location_1_0.
+
+		Thoughts:
+		package_0 is currently at location_0_1, which is not an airport in city city_0. To have package_0 at location_1_0, which is an airport in city city_1, first I need to have package_0 at location_0_0, which is an aiport in city city_0.
+
+		Subgoal:
+		My goal is to have that package_0 is at location_0_0.
+
+
+		Here is the task:
+
+		Starting state:
+		{}
+
+		Goal:
+		{}
+
+		First give your thoughts after "Thoughts:". Then give the subgoal after "Subgoal:".
+
+
+
+	""".format(start_state,goal)
+
+	subgoal_input = [{
+		"role": "system",
+		"content": "you are an AI assistant",
+	}]
+
+	subgoal_input.append({
+		"role": "user",
+		"content": subgoal_prompt,
+	})
+
+	cur_try=0
+	while cur_try<10:
+
+		try:
+			time1 = time.time()
+
+			subgoal_response = client.chat.completions.create(model=deployment_name, messages=subgoal_input,temperature=0.0,top_p = 0,max_tokens=500)
+			
+
+			
+			time2=time.time()
+
+			# global num_predictor_calls
+			
+			# num_predictor_calls+=1
+			
+			break
+
+		except Exception as e:
+			err = f"Error: {str(e)}"
+			print(err)
+			time.sleep(120)
+			cur_try+=1
+			continue
+
+	print("subgoal_response>>",subgoal_response.choices[0].message.content)
+	
+	# state_predictor_output.append(json.loads(predictor_response.choices[0].message.content.split("\n")[0].split("=")[-1]))
+	# state_predictor_output.append(json.loads(predictor_response.choices[0].message.content.split("\n")[1].split("=")[-1]))
+	# state_predictor_output.append(json.loads(predictor_response.choices[0].message.content.split("\n")[2].split("=")[-1]))
+	return subgoal_response.choices[0].message.content.split("Subgoal:")[-1]
+
 
 
 def actor_module_propose_action(previous_move,actor_input,temp_current_configuration,goal):
@@ -385,7 +514,7 @@ def actor_module_propose_action(previous_move,actor_input,temp_current_configura
 				print("actor_response>>",actor_response.choices[0].message.content)
 				
 				
-
+				
 				
 				start = actor_response.choices[0].message.content.index( "[START]" ) + len( "[START]" )
 				end = actor_response.choices[0].message.content.index( "[END]", start )
@@ -455,6 +584,10 @@ def actor_module_propose_action(previous_move,actor_input,temp_current_configura
 					"content": internal_configuration_msg,
 				})
 
+				
+
+
+
 				print(err)
 				print("Length of input now>>",len(actor_input))
 				time.sleep(120)
@@ -498,6 +631,10 @@ def actor_module_propose_action(previous_move,actor_input,temp_current_configura
 			"role": "user",
 			"content": internal_configuration_msg,
 		})
+
+	
+
+
 			
 			num_tries+=1
 
@@ -510,7 +647,7 @@ with open('task_1_plan_generation.json') as f:
 	data = json.load(f)
 i=0
 for instance in tqdm(data["instances"]):
-	# if i<163:
+	# if i<50:
 		
 	# 	print("done solving problem {}".format(i+1))
 	# 	i=i+1
@@ -519,6 +656,12 @@ for instance in tqdm(data["instances"]):
 
 
 	max_steps = len(instance['ground_truth_plan'].split("\n"))+3
+
+	subgoal = subgoal_module(instance['query'].split("[STATEMENT]")[2].split("My goal is to")[0],instance['query'].split("[STATEMENT]")[2].split("My plan is as follows:")[0].split("\n")[-3])
+
+	print("subgoal>>>",subgoal)
+	
+	final_goal = instance['query'].split("[STATEMENT]")[2].split("My plan is as follows:")[0].split("\n")[-3]
 		
 	prompt = """
 
@@ -614,10 +757,10 @@ for instance in tqdm(data["instances"]):
 
 
 
-	""".format(instance['query'].split("[STATEMENT]")[2].split("My goal is to")[0],instance['query'].split("[STATEMENT]")[2].split("My plan is as follows:")[0].split("\n")[-3])
+	""".format(instance['query'].split("[STATEMENT]")[2].split("My goal is to")[0],subgoal)
 
 	next_state_prediction = deepcopy(instance['query'].split("[STATEMENT]")[2].split("My goal is to")[0])
-	goal = deepcopy(instance['query'].split("[STATEMENT]")[2].split("My plan is as follows:")[0].split("\n")[-3])
+	# goal = deepcopy(instance['query'].split("[STATEMENT]")[2].split("My plan is as follows:")[0].split("\n")[-3])
 	
 	
 
@@ -631,10 +774,13 @@ for instance in tqdm(data["instances"]):
 		"content": prompt,
 	})
 
+	
+
 	print("starting prompt>>",prompt)
 	step=0
 	flag=0
 	gpt_actions = ""
+	subgoal_flag=0
 	previous_move = None
 	for step in range(max_steps):
 		
@@ -644,45 +790,81 @@ for instance in tqdm(data["instances"]):
 				
 		print("config>>",first_temp_current_configuration)
 				
-		move_proposal,previous_move = actor_module_propose_action(previous_move, input,first_temp_current_configuration,goal)
+		move_proposal,previous_move = actor_module_propose_action(previous_move, input,first_temp_current_configuration,subgoal)
 					
 		print("move proposal>>",move_proposal)
 		gpt_actions+=move_proposal+'\n'
 
 		next_state_prediction = state_predictor_module(first_temp_current_configuration, move_proposal)
+		end_flag = task_coordination_module(next_state_prediction,subgoal)
 
-		if task_coordination_module(next_state_prediction,goal):
-			flag=1
+		if end_flag:
+			if subgoal_flag==1:
 
-			internal_configuration_msg = """
-			Current state:
-			{}
+				flag=1
 
-			Goal:
-			{}
-		
-			Give me only the next action possible from the current state that would help in achieving the goal. 
-			Please provide the next action in between a [START] and a [END] token.
+				internal_configuration_msg = """
+				Current state:
+				{}
+
+				Goal:
+				{}
 			
+				Give me only the next action possible from the current state that would help in achieving the goal. 
+				Please provide the next action in between a [START] and a [END] token.
+				
 
-			""".format(next_state_prediction,goal)
-			print("internal configuration message>>>",internal_configuration_msg)
+				""".format(next_state_prediction,subgoal)
+				print("internal configuration message>>>",internal_configuration_msg)
 
-			prompt+="\n"+move_proposal+'.'+"\n"+internal_configuration_msg
+				prompt+="\n"+move_proposal+'.'+"\n"+internal_configuration_msg
+				
+				test_dir = './logs/'
+				check_path(test_dir)
+				output_dir = test_dir + args.output_dir + '/'
+				check_path(output_dir)
+				# output_dir+='run{}/'.format(run_no)
+				# check_path(output_dir)
+
+				with open(output_dir+'problem{}.log'.format(i+1), 'a') as w:
+					w.write(prompt +'\n'+"Solved problem in {} steps.".format(step+1))
+
+
+
+				break
+			else:
+				subgoal_flag=1
+				subgoal = final_goal
+
+				internal_configuration_msg = """
+				Current state:
+				{}
+
+				Goal:
+				{}
 			
-			test_dir = './logs/'
-			check_path(test_dir)
-			output_dir = test_dir + args.output_dir + '/'
-			check_path(output_dir)
-			# output_dir+='run{}/'.format(run_no)
-			# check_path(output_dir)
+				Give me only the next action possible from the current state that would help in achieving the goal. 
+				Please provide the next action in between a [START] and a [END] token.
+				
 
-			with open(output_dir+'problem{}.log'.format(i+1), 'a') as w:
-				w.write(prompt +'\n'+"Solved problem in {} steps.".format(step+1))
+				""".format(next_state_prediction,subgoal)
+				print("internal configuration message>>>",internal_configuration_msg)
+
+				prompt+="\n"+move_proposal+'.'+"\n"+internal_configuration_msg
+
+				input = [{
+					"role": "system",
+					"content": "you are an AI assistant",
+					}]
+
+				input.append({
+					"role": "user",
+					"content": prompt
+				})
 
 
-
-			break
+			
+				
 
 
 		else:
@@ -698,7 +880,7 @@ for instance in tqdm(data["instances"]):
 			Please provide the next action in between a [START] and a [END] token.
 			
 
-			""".format(next_state_prediction,goal)
+			""".format(next_state_prediction,subgoal)
 
 			print("internal configuration message>>>",internal_configuration_msg)
 
@@ -716,7 +898,7 @@ for instance in tqdm(data["instances"]):
 			})
 
 
-				
+			
 	if flag==0:
 		test_dir = './logs/'
 		check_path(test_dir)
@@ -739,6 +921,7 @@ for instance in tqdm(data["instances"]):
 	with open(output_dir+'problem{}.log'.format(i+1), 'a') as w:
 		w.write("\nGround truth answer>>>>>>>\n"+instance['ground_truth_plan'])
 
+	
 
 
 	
