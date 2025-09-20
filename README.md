@@ -21,6 +21,10 @@ For example to run and evaluate MAP first execute, `python gpt4_map_toh.py --ope
 
 Then execute, `python gpt4_map_toh_eval.py --output_dir '<OUTPUT DIRECTORY NAME>'`
 
+Below are the % solved problems for the 3-disk ToH with the MAP model over 5 runs
+| Model | Run 1 | Run 2 | Run 3 | Run 4 | Run 5 |
+|---|---|---|---|---|---|
+|MAP| 75 | 70.8 |75 | 83.3| 66.7|
 
 
 To run and evaluate one of the baseline models, for example, GPT-4 ICL first execute, `python gpt4_icl_toh.py --openai_api_key '<YOUR OPENAI KEY>' --output_dir '<OUTPUT DIRECTORY NAME>'`
@@ -42,7 +46,30 @@ To run and evaluate one of the baseline models, for example, GPT-4 ICL on the Va
 
 Then execute, `python gpt4_valuepath_baselines_eval.py --output_dir '<OUTPUT DIRECTORY NAME>'`
 
+### Valuepath
+| Model | Run 1 | Run 2 | Run 3 | Run 4 | Run 5 |Run 6 | Run 7 | Run 8 | Run 9 | Run 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+|MAP| 100|100  |100 |100 |100 |100 |100 |100 |100|100|
+|ToT|53.7|55.4|55.4|52.8|53.7|56|59.8|55.7|49|57.1|
 
+### Steppath
+| Model |No. steps| Run 1 | Run 2 | Run 3 | Run 4 | Run 5 |
+|---|---|---|---|---|---|---|
+|ToT|2|67.3|69.8|64.3|67.3|66.8|
+|ToT|3|66.3|67.0|69.3|67.9|63.0|
+|ToT|4|55.0|52.2|51|46.5|45.7|
+
+### Detour
+| Model | Run 1 | Run 2 | Run 3 | Run 4 | Run 5 |Run 6 | Run 7 | Run 8 | Run 9 | Run 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+|MAP| 84.6|92.3|100|61.5|92.3|84.6|84.6|84.6|76.9|92.3|
+|ToT|29.9|25|33.3|33|39.1|30.6|34|41.7|35.6|30.3|
+
+### RewardReval
+| Model | Run 1 | Run 2 | Run 3 | Run 4 | Run 5 |
+|---|---|---|---|---|---|
+|MAP| 38.5|61.5|46.2|46.2|46.2|
+|ToT|39.6|33.1|37.8|34.1|37.4|
 
 ## Planbench
 
