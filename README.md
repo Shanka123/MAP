@@ -46,6 +46,7 @@ To run and evaluate one of the baseline models, for example, GPT-4 ICL on the Va
 
 Then execute, `python gpt4_valuepath_baselines_eval.py --output_dir '<OUTPUT DIRECTORY NAME>'`
 
+Below are the % solved problems for each of the cogeval tasks with models over multiple runs
 ### Valuepath
 | Model | Run 1 | Run 2 | Run 3 | Run 4 | Run 5 |Run 6 | Run 7 | Run 8 | Run 9 | Run 10 |
 |---|---|---|---|---|---|---|---|---|---|---|
